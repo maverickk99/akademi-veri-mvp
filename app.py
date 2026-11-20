@@ -36,13 +36,36 @@ if not st.session_state.authenticated:
     st.stop()
 
 STOP_WORDS = {
+    # --- Türkçe bağlaç, zamir ve konuşma dolguları ---
     "ve", "ile", "bir", "bu", "ama", "için", "de", "da", "ne", "o", "çok", "daha",
     "gibi", "kadar", "olarak", "var", "yok", "mi", "mı", "mu", "mü", "ben", "sen",
     "biz", "siz", "onlar", "şu", "her", "şey", "bi", "yani", "işte", "mesela", "aslında",
     "zaten", "fakat", "lakin", "ancak", "veya", "ya", "hem", "ki", "en", "diğer", "sonra",
-    "önce", "şimdi", "böyle", "şöyle", "nasıl", "neden", "niçin", "kim", "hangi", "the",
-    "and", "to", "of", "in", "is", "it", "you", "that", "for", "on", "are", "with", "as",
-    "this", "was", "have", "be", "at", "or", "from", "by", "not", "but", "what", "all", "we"
+    "önce", "şimdi", "böyle", "şöyle", "nasıl", "neden", "niçin", "kim", "hangi",
+    "bunu", "bunun", "buna", "bunlar", "bunları", "bunların", "şunu", "şunun", "onu", "onun",
+    "ona", "bana", "sana", "beni", "seni", "bize", "size", "bizim", "sizin", "benim", "senin",
+    "şeyi", "şeyler", "şeyleri", "şeyin", "olan", "olur", "oldu", "olduğu", "olduğunu",
+    "olması", "olmak", "olarak", "olabilir", "oluyor", "diye", "dedi", "diyor", "değil",
+    "evet", "hayır", "tamam", "tabii", "tabi", "gerçekten", "sadece", "bile", "hiç",
+    "bence", "burada", "orada", "şurada", "buradan", "oradan", "bunda", "onda", "ise",
+    "eğer", "çünkü", "belki", "yine", "tekrar", "artık", "hep", "hepsi", "bazı", "biraz",
+    "falan", "filan", "şeklinde", "üzerinde", "içinde", "arasında", "göre", "doğru",
+    "kendi", "kendine", "nerede", "niye", "acaba", "hani", "peki", "bak", "aynı", "başka",
+    # --- İngilizce bağlaç, zamir ve konuşma dolguları ---
+    "the", "and", "to", "of", "in", "is", "it", "you", "that", "for", "on", "are", "with",
+    "as", "this", "was", "have", "be", "at", "or", "from", "by", "not", "but", "what",
+    "all", "we", "like", "can", "know", "think", "people", "there", "just", "kind", "one",
+    "really", "lot", "thing", "things", "something", "going", "get", "got", "would",
+    "could", "should", "will", "they", "them", "their", "these", "those", "then", "than",
+    "about", "into", "out", "very", "much", "more", "some", "also", "well", "yeah", "okay",
+    "right", "actually", "basically", "mean", "say", "said", "see", "way", "want", "make",
+    "because", "which", "when", "where", "who", "how", "why", "here", "now", "been",
+    "were", "has", "had", "did", "does", "doing", "your", "our", "his", "her", "him",
+    "she", "its", "any", "other", "only", "even", "still", "over", "back", "let",
+    "maybe", "sort", "yes", "gonna", "wanna", "need", "look", "take", "come", "use",
+    "used", "using", "don", "didn", "doesn", "isn", "aren", "wasn", "weren", "haven",
+    "hasn", "won", "wouldn", "couldn", "shouldn", "can't", "that's", "it's", "i'm",
+    "you're", "they're", "we're", "there's", "let's", "music", "applause", "laughter"
 }
 
 def extract_video_id(url):
