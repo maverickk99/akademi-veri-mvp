@@ -47,13 +47,14 @@ STOP_WORDS = {
 
 def extract_video_id(url):
     parsed = urlparse(url.strip())
-    if parsed.hostname in ("youtu.be", "www.youtu.be"):
-        return parsed.path[1:]
+    if parsed.hostname and "youtu.be" in parsed.hostname:
+        return parsed.path.lstrip("/")
     if parsed.hostname and "youtube.com" in parsed.hostname:
         if parsed.path == "/watch":
             return parse_qs(parsed.query).get("v", [None])[0]
         if parsed.path.startswith(("/embed/", "/v/", "/shorts/")):
-            return parsed.path.split("/")[2]
+            parts = parsed.path.split("/")
+            return parts[2] if len(parts) > 2 else None
     return None
 
 def get_keywords_dict(text, top_n=10):
@@ -123,11 +124,18 @@ def fetch_transcript_robust(video_id, info_dict):
         return re.sub(r'\s+', ' ', desc), "Video Açıklaması (Yedek)"
     
     return "Altyazı Mevcut Değil", "Yok"
-
-SAMPLE_URLS = "https://youtu.be\nhttps://youtu.be\nhttps://youtu.be"
+SAMPLE_IDS = ["aircAruvnKk", "zjkBMFhNj_g", "L_Guz73e6fw"]
+SAMPLE_URLS = "\n".join(["https://youtube.com" + vid for vid in SAMPLE_IDS])
 
 st.markdown('<p class="main-header">🎓 Akademik Veri & İçgörü Stüdyosu</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-header">YouTube içeriklerinden saniyeler içinde MAXQDA, NVivo ve SPSS uyumlu yapılandırılmış veri seti ve içerik analizi üretin.</p>', unsafe_allow_html=True)
+
+with st.expander("ℹ️ Bu Araç Araştırmacılara Ne Kazandırır? (Kullanım Rehberi)", expanded=False):
+    st.markdown("""
+    - **Zaman Tasarrufu:** Saatler süren video deşifre (transkript) ve yorum kopyalama işini saniyelere indirir.
+    - **MAXQDA Hazır Format:** Çıktı Excel dosyası doğrudan *MAXQDA -> İçeri Aktar -> Tablo Verileri* menüsüyle tek tıkla kodlamaya hazırdır.
+    - **Çift Katmanlı Veri:** Hem video konuşma metinlerini hem de izleyici yorumlarını ayrı sekmelerde sunar.
+    """)
 
 col_input1, col_input2 = st.columns([3, 1])
 with col_input2:
@@ -142,8 +150,9 @@ with col_input1:
         "Analiz Edilecek YouTube Video Linklerini Alt Alta Yapıştırın (Maksimum 10 link):",
         height=140,
         key="url_box",
-        placeholder="https://youtu.be..."
+        placeholder="https://youtube.com..."
     )
+
 if st.button("🚀 Veri Madenciliğini Başlat ve Rapor Üret", type="primary", use_container_width=True):
     raw_urls = [u.strip() for u in urls_input.splitlines() if u.strip()]
     
@@ -225,8 +234,13 @@ if st.button("🚀 Veri Madenciliğini Başlat ve Rapor Üret", type="primary", 
             })
             progress_bar.progress((idx + 1) / len(raw_urls))
 
-        status_text.success("✅ Analiz Tamamlandı! Veri seti MAXQDA ve Excel aktarımı için hazır.")
         df = pd.DataFrame(results)
+        if df.empty:
+            status_text.empty()
+            st.error("Geçerli bir YouTube video linki algılanamadı. Lütfen linklerin tam olduğundan emin olun.")
+            st.stop()
+
+        status_text.success("✅ Analiz Tamamlandı! Veri seti MAXQDA ve Excel aktarımı için hazır.")
         df_comments = pd.DataFrame(comments_data)
 
         st.divider()
@@ -240,6 +254,7 @@ if st.button("🚀 Veri Madenciliğini Başlat ve Rapor Üret", type="primary", 
         global_kw = get_keywords_dict(all_text_combined, top_n=12)
         if global_kw:
             st.subheader("🧠 Otomatik Kavram Yoğunluğu (Ön Tema Analizi)")
+            st.caption("Tüm videolardaki konuşma metinleri birleştirilerek en sık tekrar eden kavramsal örüntüler çıkarılmıştır:")
             kw_df = pd.DataFrame(list(global_kw.items()), columns=["Kavram", "Frekans"]).set_index("Kavram")
             st.bar_chart(kw_df, color="#2563EB")
 
