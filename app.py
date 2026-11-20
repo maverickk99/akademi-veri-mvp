@@ -24,7 +24,7 @@ if "authenticated" not in st.session_state:
 if not st.session_state.authenticated:
     st.markdown('<p class="main-header">🎓 Akademik Veri & İçgörü Stüdyosu</p>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">Nitel ve Karma Yöntem Araştırmaları İçin Otomatik Veri Madenciliği Platformu</p>', unsafe_allow_html=True)
-    col1, col2 = st.columns([1, 2])
+    col1, col2 = st.columns((1, 2))
     with col1:
         password = st.text_input("Araştırmacı Erişim Şifresi:", type="password", placeholder="Şifreyi giriniz...")
         if st.button("Sisteme Giriş Yap", type="primary"):
@@ -46,16 +46,32 @@ STOP_WORDS = {
 }
 
 def extract_video_id(url):
-    parsed = urlparse(url.strip())
-    if parsed.hostname and "youtu.be" in parsed.hostname:
-        return parsed.path.lstrip("/")
-    if parsed.hostname and "youtube.com" in parsed.hostname:
+    url = (url or "").strip()
+    if not url:
+        return None
+    # Sadece video ID'si girildiyse (11 karakter)
+    if re.fullmatch(r'[A-Za-z0-9_-]{11}', url):
+        return url
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    if host.endswith("youtu.be"):
+        vid = parsed.path.lstrip("/").split("/")[0]
+        if re.fullmatch(r'[A-Za-z0-9_-]{11}', vid):
+            return vid
+    if "youtube.com" in host and host.endswith("youtube.com"):
         if parsed.path == "/watch":
-            return parse_qs(parsed.query).get("v", [None])[0]
-        if parsed.path.startswith(("/embed/", "/v/", "/shorts/")):
+            v_list = parse_qs(parsed.query).get("v")
+            if v_list and re.fullmatch(r'[A-Za-z0-9_-]{11}', v_list[0]):
+                return v_list[0]
+        if parsed.path.startswith(("/embed/", "/v/", "/shorts/", "/live/")):
             parts = parsed.path.split("/")
-            return parts[2] if len(parts) > 2 else None
-    return None
+            if len(parts) > 2 and re.fullmatch(r'[A-Za-z0-9_-]{11}', parts[2]):
+                return parts[2]
+    # Yedek: eğik çizgisi eksik / bozuk linkleri kurtar (örn: youtube.comaircAruvnKk)
+    m = re.search(r'(?:youtu\.be/?|youtube\.com/?(?:watch\?v=|embed/|v/|shorts/|live/)?)([A-Za-z0-9_-]{11})(?![A-Za-z0-9_-])', url)
+    return m.group(1) if m else None
 
 def get_keywords_dict(text, top_n=10):
     if not text or text.startswith("Altyazı"):
@@ -124,8 +140,9 @@ def fetch_transcript_robust(video_id, info_dict):
         return re.sub(r'\s+', ' ', desc), "Video Açıklaması (Yedek)"
     
     return "Altyazı Mevcut Değil", "Yok"
+
 SAMPLE_IDS = ["aircAruvnKk", "zjkBMFhNj_g", "L_Guz73e6fw"]
-SAMPLE_URLS = "\n".join(["https://youtube.com" + vid for vid in SAMPLE_IDS])
+SAMPLE_URLS = "\n".join(["https://www.youtube.com/watch?v=" + vid for vid in SAMPLE_IDS])
 
 st.markdown('<p class="main-header">🎓 Akademik Veri & İçgörü Stüdyosu</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-header">YouTube içeriklerinden saniyeler içinde MAXQDA, NVivo ve SPSS uyumlu yapılandırılmış veri seti ve içerik analizi üretin.</p>', unsafe_allow_html=True)
@@ -137,7 +154,7 @@ with st.expander("ℹ️ Bu Araç Araştırmacılara Ne Kazandırır? (Kullanım
     - **Çift Katmanlı Veri:** Hem video konuşma metinlerini hem de izleyici yorumlarını ayrı sekmelerde sunar.
     """)
 
-col_input1, col_input2 = st.columns([3, 1])
+col_input1, col_input2 = st.columns((3, 1))
 with col_input2:
     st.write("")
     st.write("")
@@ -150,7 +167,7 @@ with col_input1:
         "Analiz Edilecek YouTube Video Linklerini Alt Alta Yapıştırın (Maksimum 10 link):",
         height=140,
         key="url_box",
-        placeholder="https://youtube.com..."
+        placeholder="https://www.youtube.com/watch?v=aircAruvnKk"
     )
 
 if st.button("🚀 Veri Madenciliğini Başlat ve Rapor Üret", type="primary", use_container_width=True):
@@ -163,6 +180,7 @@ if st.button("🚀 Veri Madenciliğini Başlat ve Rapor Üret", type="primary", 
     else:
         results = []
         comments_data = []
+        invalid_urls = []
         all_text_combined = ""
         
         progress_bar = st.progress(0)
@@ -181,6 +199,7 @@ if st.button("🚀 Veri Madenciliğini Başlat ve Rapor Üret", type="primary", 
             video_id = extract_video_id(url)
             
             if not video_id:
+                invalid_urls.append(url)
                 progress_bar.progress((idx + 1) / len(raw_urls))
                 continue
 
@@ -188,7 +207,7 @@ if st.button("🚀 Veri Madenciliğini Başlat ve Rapor Üret", type="primary", 
             info = {}
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(url, download=False) or {}
+                    info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False) or {}
                     title = info.get("title", "Bilinmiyor")
                     channel = info.get("uploader", "Bilinmiyor")
                     raw_date = info.get("upload_date", "")
@@ -237,8 +256,11 @@ if st.button("🚀 Veri Madenciliğini Başlat ve Rapor Üret", type="primary", 
         df = pd.DataFrame(results)
         if df.empty:
             status_text.empty()
-            st.error("Geçerli bir YouTube video linki algılanamadı. Lütfen linklerin tam olduğundan emin olun.")
+            st.error("Geçerli bir YouTube video linki algılanamadı. Lütfen linklerin tam olduğundan emin olun (örn: https://youtu.be/aircAruvnKk).")
             st.stop()
+
+        if invalid_urls:
+            st.warning("Şu linkler tanınamadı ve atlandı: " + ", ".join(invalid_urls))
 
         status_text.success("✅ Analiz Tamamlandı! Veri seti MAXQDA ve Excel aktarımı için hazır.")
         df_comments = pd.DataFrame(comments_data)
@@ -272,7 +294,7 @@ if st.button("🚀 Veri Madenciliğini Başlat ve Rapor Üret", type="primary", 
             df.to_excel(writer, index=False, sheet_name='1_Video_Transkriptler')
             if not df_comments.empty:
                 df_comments.to_excel(writer, index=False, sheet_name='2_Izleyici_Yorumlari')
-        
+
         st.download_button(
             label="📥 Çok Sekmeli MAXQDA & SPSS Veri Setini İndir (.xlsx)",
             data=output.getvalue(),
